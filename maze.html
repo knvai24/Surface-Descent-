@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Rock HARD Maze🗿</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    body{
+      background:radial-gradient(ellipse at 20% 10%,#1a0a00 0%,#0b0703 40%,#000 100%);
+      font-family:"Press Start 2P",monospace;
+      color:#f0e9d8;
+      overflow:hidden;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+    }
+    #hud{display:flex;gap:24px;align-items:center;margin-bottom:10px;z-index:5;}
+    .hud-box{
+      background:rgba(0,0,0,0.55);border:1.5px solid #7a3a10;border-radius:10px;
+      padding:6px 18px;font-size:14px;letter-spacing:1px;
+      text-shadow:0 0 8px #ff6600;color:#ffbb80;
+      box-shadow:0 0 12px rgba(255,100,0,0.18);
+    }
+    #hud h1{font-size:18px;color:#f5e6c3;text-shadow:0 0 14px #a04010,0 0 28px #7a2800;letter-spacing:2px;}
+    canvas{
+      border:3px solid #4a2e10;
+      box-shadow:0 0 40px rgba(160,60,0,0.6),0 0 80px rgba(100,30,0,0.3);
+      z-index:2;display:block;border-radius:4px;
+    }
+    #overlay{
+      position:fixed;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.88);z-index:20;gap:18px;
+    }
+    #overlay h2{font-size:32px;color:#f5d98a;text-shadow:0 0 18px #c87800,0 0 50px #a05000;letter-spacing:3px;}
+    #overlay p{font-size:14px;color:#c9b080;max-width:420px;line-height:1.7;text-align:center;}
+    #startBtn{
+      padding:14px 54px;font-size:20px;font-weight:bold;color:#0a0800;
+      background:linear-gradient(135deg,#f5c842 0%,#e8a010 50%,#f5c842 100%);
+      border:2px solid #c87800;border-radius:10px;cursor:pointer;letter-spacing:1px;
+      box-shadow:0 0 20px rgba(240,160,0,0.7),0 0 50px rgba(200,120,0,0.3);
+      transition:all 0.2s;
+    }
+    #startBtn:hover{transform:scale(1.05);box-shadow:0 0 32px rgba(255,200,0,0.9);}
+    #startBtn:active{transform:scale(0.97);}
+    #msgBox{
+      position:fixed;inset:0;display:none;flex-direction:column;
+      align-items:center;justify-content:center;
+      background:rgba(0,0,0,0.88);z-index:30;gap:20px;
+    }
+    #return-hub-btn{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:28px;font-family:'Press Start 2P',monospace;font-size:12px;padding:10px 16px;background:linear-gradient(135deg,#6b2bd1,#c060ff);color:#fff;border-radius:10px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;z-index:60;box-shadow:0 0 20px rgba(160,80,255,0.35);}
+  #give-crystal-btn { position:fixed; right:16px; top:16px; font-family:'Press Start 2P',monospace; font-size:11px; padding:8px 12px; background:linear-gradient(135deg,#00b4ff,#0066ff); color:#fff; border-radius:8px; border:1px solid rgba(255,255,255,0.08); cursor:pointer; z-index:61; box-shadow:0 0 20px rgba(0,120,255,0.25); }
+    #msgBox h2{font-size:36px;text-shadow:0 0 20px currentColor;letter-spacing:3px;}
+    #msgBox p{font-size:15px;color:#c9b080;max-width:360px;text-align:center;}
+    #replayBtn{
+      padding:12px 44px;font-size:17px;font-weight:bold;color:#0a0800;
+      background:linear-gradient(135deg,#f5c842,#e8a010,#f5c842);
+      border:2px solid #c87800;border-radius:10px;cursor:pointer;letter-spacing:1px;
+      box-shadow:0 0 20px rgba(240,160,0,0.7);transition:all 0.2s;
+    }
+    #replayBtn:hover{transform:scale(1.05);}
+    #dangerBox{transition:color 0.3s;}
+  </style>
+</head>
+<body>
+
+<div id="overlay">
+  <h2>Rock HARD Maze🗿</h2>
+  <p>Navigate the cursed underground cavern. The <span style="color:#f66">Inferno Beast</span> follows your trail — and <strong>speeds up the closer it gets</strong>. Reach the <span style="color:#0f8">glowing exit</span> before it closes the gap!</p>
+  <p style="font-size:12px;color:#777;">Arrow Keys or WASD &nbsp;|&nbsp; Green arrow = hint &nbsp;|&nbsp; Red trail = your path &nbsp;|&nbsp; Beast chases from behind!</p>
+  <button id="startBtn">⛏ Enter the Cavern</button>
+</div>
+
+<div id="msgBox">
+  <h2 id="msgTitle"></h2>
+  <p id="msgBody"></p>
+  <button id="replayBtn">🔁 Play Again</button>
+</div>
+<button id="return-hub-btn" aria-hidden="true" style="display:none;">CLICK TO RETURN TO HUB</button>
+<button id="give-crystal-btn" aria-hidden="false">GIVE CRYSTAL</button>
+
+<div id="hud">
+  <h1>Rock HARD Maze</h1>
+  <div class="hud-box">⏱ <span id="timeDisp">1:00</span></div>
+  <div class="hud-box">🏃 Steps: <span id="stepDisp">0</span></div>
+  <div class="hud-box" id="dangerBox" style="color:#0f8;">🔴 Safe</div>
+</div>
+<canvas id="c" width="540" height="540"></canvas>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+const ROWS=20,COLS=20,VIEW=11,W=540,H=540,CS=W/VIEW;
+const TOTAL_MS=60000; // 1 minute
+const ISO_DX=CS*0.18,ISO_DY=-CS*0.13;
+const GHOST_LAG=10;
+const FAR_SPEED=900,NEAR_SPEED=120,FAR_DIST=15,NEAR_DIST=2;
+
+// ── AUDIO (NEW) ──────────────────────────────────────────────
+// Procedural SFX: ambience + steps + bump + heartbeat + timer ticks + win/lose
+const SFX = {
+  ctx:null, master:null, inited:false,
+  noiseBuf:null,
+  ambience:{src:null,g:null,lp:null,lfo:null,lfoG:null, started:false},
+  hb:{g:null, running:false, next:0, interval:1.2},
+  lastStepAt:0,
+  lastGrowlAt:0,
+  prevTickSec:null,
+
+  init(){
+    if(this.inited) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC){ console.warn("AudioContext unsupported"); return; }
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.85;
+    this.master.connect(this.ctx.destination);
+    this.noiseBuf = this._makeNoise(1.5);
+    this._buildAmbience();
+    this._buildHeartbeat();
+    this.inited = true;
+  },
+  resume(){
+    if(this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  _makeNoise(seconds){
+    const sr=this.ctx.sampleRate;
+    const buf=this.ctx.createBuffer(1, Math.floor(sr*seconds), sr);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.9;
+    return buf;
+  },
+  _env(g, t, a=0.003, d=0.10, end=0.0001){
+    const now=t ?? this.ctx.currentTime;
+    g.gain.cancelScheduledValues(now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(1, now+a);
+    g.gain.exponentialRampToValueAtTime(end, now+a+d);
+    return now+a+d;
+  },
+
+  // --- Ambience: filtered noise with slow tremolo
+  _buildAmbience(){
+    const src=this.ctx.createBufferSource();
+    src.buffer=this.noiseBuf; src.loop=true;
+
+    const lp=this.ctx.createBiquadFilter();
+    lp.type="lowpass"; lp.frequency.value=420;
+
+    const g=this.ctx.createGain();
+    g.gain.value=0.0;
+
+    const lfo=this.ctx.createOscillator();
+    lfo.frequency.value=0.10;
+    const lfoG=this.ctx.createGain();
+    lfoG.gain.value=0.18;
+
+    lfo.connect(lfoG);
+    lfoG.connect(g.gain);
+
+    src.connect(lp);
+    lp.connect(g);
+    g.connect(this.master);
+
+    this.ambience={src,g,lp,lfo,lfoG, started:false};
+  },
+  startAmbience(){
+    if(!this.inited) return;
+    try{
+      if(!this.ambience.started){
+        this.ambience.src.start();
+        this.ambience.lfo.start();
+        this.ambience.started=true;
+      }
+      this.ambience.g.gain.setTargetAtTime(0.22, this.ctx.currentTime, 0.35);
+    }catch(e){}
+  },
+  stopAmbience(){
+    if(!this.inited) return;
+    this.ambience.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.2);
+  },
+
+  // --- Heartbeat: tempo & intensity scale with distance
+  _buildHeartbeat(){
+    const g=this.ctx.createGain();
+    g.gain.value=0.0;
+    g.connect(this.master);
+    this.hb.g=g;
+  },
+  _thump(at){
+    const o=this.ctx.createOscillator();
+    o.type="sine";
+    o.frequency.setValueAtTime(56, at);
+    o.frequency.linearRampToValueAtTime(70, at+0.02);
+    o.frequency.exponentialRampToValueAtTime(40, at+0.18);
+
+    const g=this.ctx.createGain();
+    g.gain.value=0;
+    o.connect(g);
+    g.connect(this.hb.g);
+
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(0.9, at+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, at+0.22);
+
+    o.start(at);
+    o.stop(at+0.26);
+  },
+  startHeartbeat(){
+    if(!this.inited) return;
+    this.hb.running=true;
+    this.hb.next=this.ctx.currentTime+0.05;
+    this._hbLoop();
+  },
+  stopHeartbeat(){
+    this.hb.running=false;
+    if(this.inited) this.hb.g.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.2);
+  },
+  _hbLoop(){
+    if(!this.inited || !this.hb.running) return;
+    const now=this.ctx.currentTime;
+    if(this.hb.next < now + 0.06){
+      const t = Math.max(now, this.hb.next);
+      this._thump(t);
+      this._thump(t+0.20); // lub-dub
+      this.hb.next = t + this.hb.interval;
+    }
+    setTimeout(()=>this._hbLoop(), 60);
+  },
+  setDanger(dist){
+    if(!this.inited) return;
+    const t = Math.max(0, Math.min(1,(dist-NEAR_DIST)/(FAR_DIST-NEAR_DIST)));
+    // near => faster heartbeat, louder
+    this.hb.interval = 0.55 + t*0.95;
+    this.hb.g.gain.setTargetAtTime((1-t)*0.22, this.ctx.currentTime, 0.08);
+
+    // ambience filter opens up slightly with danger
+    const cutoff = 380 + (1-t)*320; // 380..700
+    this.ambience.lp.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.2);
+
+    // optional: subtle growl when very close (rate-limited)
+    if(dist<=3){
+      const ms=performance.now();
+      if(ms - this.lastGrowlAt > 900){
+        this.lastGrowlAt = ms;
+        this.growl();
+      }
+    }
+  },
+
+  // --- Movement SFX
+  step(){
+    if(!this.inited) return;
+    const ms=performance.now();
+    if(ms - this.lastStepAt < 35) return; // avoid spam
+    this.lastStepAt = ms;
+
+    const t=this.ctx.currentTime+(Math.random()*0.01);
+
+    // gritty foot (noise + bandpass)
+    const ns=this.ctx.createBufferSource();
+    ns.buffer=this.noiseBuf;
+
+    const bp=this.ctx.createBiquadFilter();
+    bp.type="bandpass";
+    bp.frequency.value = 140 + Math.random()*90;
+    bp.Q.value=3.2;
+
+    const g=this.ctx.createGain();
+    g.gain.value=0;
+
+    ns.connect(bp);
+    bp.connect(g);
+    g.connect(this.master);
+
+    const end=this._env(g, t, 0.001, 0.085, 0.0001);
+    ns.start(t);
+    ns.stop(end+0.03);
+
+    // tiny heel click
+    const o=this.ctx.createOscillator();
+    o.type="sine";
+    o.frequency.setValueAtTime(220 + Math.random()*40, t);
+
+    const og=this.ctx.createGain();
+    og.gain.value=0;
+    o.connect(og);
+    og.connect(this.master);
+
+    og.gain.linearRampToValueAtTime(0.18, t+0.01);
+    og.gain.exponentialRampToValueAtTime(0.0001, t+0.06);
+
+    o.start(t);
+    o.stop(t+0.08);
+  },
+  bump(){
+    if(!this.inited) return;
+    const t=this.ctx.currentTime;
+
+    const o=this.ctx.createOscillator();
+    o.type="triangle";
+    o.frequency.setValueAtTime(95, t);
+    o.frequency.exponentialRampToValueAtTime(55, t+0.14);
+
+    const g=this.ctx.createGain();
+    g.gain.value=0;
+    o.connect(g);
+    g.connect(this.master);
+
+    g.gain.linearRampToValueAtTime(0.5, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.16);
+
+    o.start(t);
+    o.stop(t+0.18);
+  },
+
+  // --- UI/game cues
+  start(){
+    if(!this.inited) return;
+    const t=this.ctx.currentTime;
+    this._arp([392,523,659,784], t, 0.06, 0.14, 0.42);
+  },
+  win(){
+    if(!this.inited) return;
+    const t=this.ctx.currentTime;
+    this._arp([523,659,784,988,1175], t, 0.045, 0.13, 0.55);
+  },
+  growl(){
+    if(!this.inited) return;
+    const t=this.ctx.currentTime;
+
+    const ns=this.ctx.createBufferSource();
+    ns.buffer=this.noiseBuf;
+
+    const lp=this.ctx.createBiquadFilter();
+    lp.type="lowpass";
+    lp.frequency.value=900;
+
+    const g=this.ctx.createGain();
+    g.gain.value=0;
+
+    ns.connect(lp);
+    lp.connect(g);
+    g.connect(this.master);
+
+    g.gain.linearRampToValueAtTime(0.7, t+0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.65);
+    lp.frequency.exponentialRampToValueAtTime(140, t+0.65);
+
+    ns.start(t);
+    ns.stop(t+0.72);
+
+    const o=this.ctx.createOscillator();
+    o.type="sawtooth";
+    o.frequency.setValueAtTime(190, t);
+    o.frequency.exponentialRampToValueAtTime(55, t+0.55);
+
+    const og=this.ctx.createGain();
+    og.gain.value=0;
+
+    o.connect(og);
+    og.connect(this.master);
+
+    og.gain.linearRampToValueAtTime(0.35, t+0.02);
+    og.gain.exponentialRampToValueAtTime(0.0001, t+0.55);
+
+    o.start(t);
+    o.stop(t+0.58);
+  },
+  tick(){
+    if(!this.inited) return;
+    const t=this.ctx.currentTime;
+
+    const o=this.ctx.createOscillator();
+    o.type="square";
+    o.frequency.setValueAtTime(1250, t);
+
+    const g=this.ctx.createGain();
+    g.gain.value=0;
+
+    o.connect(g);
+    g.connect(this.master);
+
+    g.gain.linearRampToValueAtTime(0.35, t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
+
+    o.start(t);
+    o.stop(t+0.12);
+  },
+  _arp(freqs, t, step=0.06, dur=0.12, vol=0.5){
+    freqs.forEach((f,i)=>{
+      const o=this.ctx.createOscillator();
+      o.type="sine";
+      o.frequency.setValueAtTime(f, t+i*step);
+
+      const g=this.ctx.createGain();
+      g.gain.value=0;
+
+      o.connect(g);
+      g.connect(this.master);
+
+      g.gain.linearRampToValueAtTime(vol, t+i*step+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+i*step+dur);
+
+      o.start(t+i*step);
+      o.stop(t+i*step+dur+0.02);
+    });
+  },
+  stopAll(){
+    if(!this.inited) return;
+    this.stopAmbience();
+    this.stopHeartbeat();
+  }
+};
+
+// ── MAZE DATA ────────────────────────────────────────────────
+const hW=[],vW=[];
+function resetWalls(){
+  hW.length=0;vW.length=0;
+  for(let r=0;r<=ROWS;r++){hW[r]=[];for(let c=0;c<COLS;c++)hW[r][c]=1;}
+  for(let r=0;r<ROWS;r++){vW[r]=[];for(let c=0;c<=COLS;c++)vW[r][c]=1;}
+}
+class DSU{
+  constructor(n){this.p=[...Array(n).keys()];this.rank=new Array(n).fill(0);}
+  find(x){return this.p[x]===x?x:(this.p[x]=this.find(this.p[x]));}
+  union(a,b){
+    a=this.find(a);b=this.find(b);if(a===b)return false;
+    if(this.rank[a]<this.rank[b])[a,b]=[b,a];
+    this.p[b]=a;if(this.rank[a]===this.rank[b])this.rank[a]++;return true;
+  }
+}
+function genMaze(){
+  resetWalls();
+  const dsu=new DSU(ROWS*COLS),edges=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const id=r*COLS+c;
+    if(r+1<ROWS)edges.push([id,(r+1)*COLS+c,0]);
+    if(c+1<COLS)edges.push([id,r*COLS+(c+1),1]);
+  }
+  for(let i=edges.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[edges[i],edges[j]]=[edges[j],edges[i]];}
+  for(const[a,b,t]of edges){
+    if(!dsu.union(a,b))continue;
+    const r1=Math.floor(a/COLS),c1=a%COLS,r2=Math.floor(b/COLS),c2=b%COLS;
+    if(t===0)hW[Math.max(r1,r2)][c1]=0;
+    else vW[r1][Math.max(c1,c2)]=0;
+  }
+}
+function canPass(r1,c1,r2,c2){
+  if(r2<0||r2>=ROWS||c2<0||c2>=COLS)return false;
+  const dr=r2-r1,dc=c2-c1;
+  if(dr===-1)return hW[r1][c1]===0;
+  if(dr===1)return hW[r1+1][c1]===0;
+  if(dc===-1)return vW[r1][c1]===0;
+  if(dc===1)return vW[r1][c1+1]===0;
+  return false;
+}
+
+// ── BFS ──────────────────────────────────────────────────────
+function bfs(sr,sc,er,ec){
+  const vis=[],par=[];
+  for(let r=0;r<ROWS;r++){vis[r]=new Array(COLS).fill(false);par[r]=new Array(COLS).fill(null);}
+  const q=[{r:sr,c:sc}];vis[sr][sc]=true;
+  while(q.length){
+    const{r,c}=q.shift();
+    if(r===er&&c===ec)break;
+    for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=ROWS||nc<0||nc>=COLS||vis[nr][nc]||!canPass(r,c,nr,nc))continue;
+      vis[nr][nc]=true;par[nr][nc]={r,c};q.push({r:nr,c:nc});
+    }
+  }
+  if(!par[er][ec]&&!(er===sr&&ec===sc))return[];
+  const path=[];let cr=er,cc=ec;
+  while(!(cr===sr&&cc===sc)){path.push({r:cr,c:cc});({r:cr,c:cc}=par[cr][cc]);}
+  path.push({r:sr,c:sc});return path.reverse();
+}
+
+// ── GAME STATE ───────────────────────────────────────────────
+const GOAL={r:ROWS-1,c:COLS-1};
+let player,ghost,trail,posHistory,steps,pathDir,gameOver,gameStarted;
+let startTime,timerId,ghostTimer,animFrame;
+
+function mxy(r,c,sr,sc){return{x:(c-sc)*CS,y:(r-sr)*CS};}
+function getOrigin(){
+  let sr=Math.max(0,Math.min(ROWS-VIEW,player.r-Math.floor(VIEW/2)));
+  let sc=Math.max(0,Math.min(COLS-VIEW,player.c-Math.floor(VIEW/2)));
+  return{sr,sc};
+}
+function computeHintPath(){
+  pathDir=[];
+  for(let r=0;r<ROWS;r++)pathDir[r]=new Array(COLS).fill(null);
+  const path=bfs(0,0,GOAL.r,GOAL.c);
+  for(let i=0;i<path.length-1;i++){
+    const{r,c}=path[i],{r:nr,c:nc}=path[i+1];
+    const dr=nr-r,dc=nc-c;
+    pathDir[r][c]=dr===-1?"up":dr===1?"down":dc===-1?"left":"right";
+  }
+}
+function dist(a,b){return Math.abs(a.r-b.r)+Math.abs(a.c-b.c);}
+
+// ── PARTICLES ────────────────────────────────────────────────
+const particles=Array.from({length:20},()=>({
+  x:Math.random()*W,y:Math.random()*H,
+  vx:(Math.random()-0.5)*0.35,vy:-0.25-Math.random()*0.4,
+  life:Math.random(),hue:Math.random()<0.5?30:280,sz:1+Math.random()*1.8
+}));
+function tickParticles(){
+  for(const p of particles){
+    p.x+=p.vx;p.y+=p.vy;p.life+=0.004;
+    if(p.life>1||p.y<0){p.x=Math.random()*W;p.y=H+4;p.life=0;}
+  }
+}
+
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
+
+// Optional safety: roundRect polyfill (won't change visuals)
+if(!ctx.roundRect){
+  ctx.roundRect=function(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    this.beginPath();
+    this.moveTo(x+r,y);
+    this.arcTo(x+w,y,x+w,y+h,r);
+    this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);
+    this.arcTo(x,y,x+w,y,r);
+    this.closePath();
+    return this;
+  }
+}
+
+// ── DRAW FLOOR ───────────────────────────────────────────────
+function drawFloor(sr,sc){
+  for(let r=sr;r<sr+VIEW;r++)for(let c=sc;c<sc+VIEW;c++){
+    const{x,y}=mxy(r,c,sr,sc);
+    ctx.fillStyle=(r+c)%2===0?"#1e1610":"#17120d";
+    ctx.fillRect(x,y,CS,CS);
+    ctx.strokeStyle="rgba(255,255,255,0.022)";ctx.lineWidth=0.6;
+    const h=((r*31+c*17)%8)/8;
+    ctx.beginPath();ctx.moveTo(x+CS*h,y);ctx.lineTo(x+CS*(h+0.28),y+CS);ctx.stroke();
+    if(r===GOAL.r&&c===GOAL.c){
+      ctx.fillStyle="rgba(0,255,136,0.07)";ctx.fillRect(x,y,CS,CS);
+    }
+  }
+}
+
+// ── DRAW WALLS ───────────────────────────────────────────────
+function drawWalls(sr,sc){
+  const th=CS*0.2;
+  for(let r=sr;r<=sr+VIEW;r++){
+    for(let c=sc;c<sc+VIEW;c++){
+      if(r<0||r>ROWS||c<0||c>=COLS||!hW[r][c])continue;
+      const{x}=mxy(0,c,sr,sc);
+      const y=(r-sr)*CS;
+      const gf=ctx.createLinearGradient(x,y-th,x+CS,y);
+      gf.addColorStop(0,"#3d2210");gf.addColorStop(1,"#2a1608");
+      ctx.fillStyle=gf;ctx.fillRect(x,y-th,CS,th);
+      ctx.beginPath();ctx.moveTo(x,y-th);ctx.lineTo(x+ISO_DX,y-th+ISO_DY);
+      ctx.lineTo(x+CS+ISO_DX,y-th+ISO_DY);ctx.lineTo(x+CS,y-th);ctx.closePath();
+      ctx.fillStyle="#5a3318";ctx.fill();
+      ctx.strokeStyle="#7a4820";ctx.lineWidth=0.9;
+      ctx.beginPath();ctx.moveTo(x,y-th);ctx.lineTo(x+ISO_DX,y-th+ISO_DY);
+      ctx.moveTo(x+CS,y-th);ctx.lineTo(x+CS+ISO_DX,y-th+ISO_DY);ctx.stroke();
+    }
+  }
+  for(let r=sr;r<sr+VIEW;r++){
+    for(let c=sc;c<=sc+VIEW;c++){
+      if(r<0||r>=ROWS||c<0||c>COLS||!vW[r][c])continue;
+      const x=(c-sc)*CS;
+      const{y}=mxy(r,0,sr,sc);
+      const gf=ctx.createLinearGradient(x-th,y,x,y+CS);
+      gf.addColorStop(0,"#3d2210");gf.addColorStop(1,"#2a1608");
+      ctx.fillStyle=gf;ctx.fillRect(x-th,y,th,CS);
+      ctx.beginPath();ctx.moveTo(x-th,y);ctx.lineTo(x-th+ISO_DX,y+ISO_DY);
+      ctx.lineTo(x+ISO_DX,y+ISO_DY);ctx.lineTo(x,y);ctx.closePath();
+      ctx.fillStyle="#5a3318";ctx.fill();
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ISO_DX,y+ISO_DY);
+      ctx.lineTo(x+ISO_DX,y+ISO_DY+CS);ctx.lineTo(x,y+CS);ctx.closePath();
+      ctx.fillStyle="#2a1608";ctx.fill();
+      ctx.strokeStyle="#7a4820";ctx.lineWidth=0.9;
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ISO_DX,y+ISO_DY);ctx.stroke();
+    }
+  }
+}
+
+// ── DRAW GOAL ────────────────────────────────────────────────
+function drawGoal(sr,sc,t){
+  if(GOAL.r<sr||GOAL.r>=sr+VIEW||GOAL.c<sc||GOAL.c>=sc+VIEW)return;
+  const{x,y}=mxy(GOAL.r,GOAL.c,sr,sc);
+  const cx2=x+CS/2,cy2=y+CS/2;
+  const pulse=0.72+0.28*Math.sin(t*0.004);
+  const rad=CS*0.32*pulse;
+  const g=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,rad*2.5);
+  g.addColorStop(0,"rgba(0,255,136,0.45)");g.addColorStop(1,"rgba(0,255,136,0)");
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx2,cy2,rad*2.5,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.translate(cx2,cy2);ctx.rotate(t*0.0018);
+  ctx.beginPath();ctx.moveTo(0,-rad);ctx.lineTo(rad*0.58,0);ctx.lineTo(0,rad);ctx.lineTo(-rad*0.58,0);ctx.closePath();
+  const gg=ctx.createLinearGradient(-rad,-rad,rad,rad);
+  gg.addColorStop(0,"#afffcf");gg.addColorStop(0.5,"#00ff88");gg.addColorStop(1,"#007744");
+  ctx.fillStyle=gg;ctx.fill();
+  ctx.strokeStyle="#00ffaa";ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,-rad);ctx.lineTo(rad*0.28,-rad*0.1);ctx.lineTo(0,0);ctx.closePath();
+  ctx.fillStyle="rgba(255,255,255,0.33)";ctx.fill();
+  ctx.restore();
+  ctx.fillStyle="rgba(0,255,136,0.88)";ctx.font=`bold ${CS*0.2}px Arial`;
+  ctx.textAlign="center";ctx.fillText("EXIT",cx2,cy2+rad+CS*0.24);
+}
+
+// ── DRAW TRAIL ───────────────────────────────────────────────
+function drawTrail(sr,sc){
+  if(trail.length<2)return;
+  ctx.save();ctx.strokeStyle="rgba(200,40,20,0.65)";
+  ctx.lineWidth=CS*0.11;ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.beginPath();let started=false;
+  for(const cell of trail){
+    if(cell.r<sr||cell.r>=sr+VIEW||cell.c<sc||cell.c>=sc+VIEW){started=false;continue;}
+    const{x,y}=mxy(cell.r,cell.c,sr,sc);
+    const cx2=x+CS/2,cy2=y+CS/2;
+    if(!started){ctx.moveTo(cx2,cy2);started=true;}else ctx.lineTo(cx2,cy2);
+  }
+  ctx.stroke();ctx.restore();
+}
+
+// ── DRAW HINT ARROW ──────────────────────────────────────────
+function drawArrow(sr,sc){
+  const d=pathDir[player.r][player.c];if(!d)return;
+  let nr=player.r,nc=player.c;
+  if(d==="up")nr--;else if(d==="down")nr++;else if(d==="left")nc--;else nc++;
+  if(nr<sr||nr>=sr+VIEW||nc<sc||nc>=sc+VIEW)return;
+  const{x,y}=mxy(nr,nc,sr,sc);
+  const cx2=x+CS/2,cy2=y+CS/2,sz=CS*0.3;
+  const g=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,sz*1.5);
+  g.addColorStop(0,"rgba(0,255,150,0.32)");g.addColorStop(1,"rgba(0,255,150,0)");
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx2,cy2,sz*1.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="rgba(0,255,150,0.95)";ctx.beginPath();
+  if(d==="up"){ctx.moveTo(cx2,cy2-sz*0.6);ctx.lineTo(cx2-sz*0.42,cy2+sz*0.32);ctx.lineTo(cx2+sz*0.42,cy2+sz*0.32);}
+  else if(d==="down"){ctx.moveTo(cx2,cy2+sz*0.6);ctx.lineTo(cx2-sz*0.42,cy2-sz*0.32);ctx.lineTo(cx2+sz*0.42,cy2-sz*0.32);}
+  else if(d==="left"){ctx.moveTo(cx2-sz*0.6,cy2);ctx.lineTo(cx2+sz*0.32,cy2-sz*0.42);ctx.lineTo(cx2+sz*0.32,cy2+sz*0.42);}
+  else{ctx.moveTo(cx2+sz*0.6,cy2);ctx.lineTo(cx2-sz*0.32,cy2-sz*0.42);ctx.lineTo(cx2-sz*0.32,cy2+sz*0.42);}
+  ctx.closePath();ctx.fill();
+}
+
+// ── DRAW PLAYER ──────────────────────────────────────────────
+function drawPlayer(sr,sc,t){
+  const{x,y}=mxy(player.r,player.c,sr,sc);
+  const cx=x+CS/2,cy=y+CS/2;
+  const bob=Math.sin(t*0.007)*CS*0.035;
+  ctx.save();
+  ctx.translate(cx,cy+bob);
+  ctx.fillStyle="rgba(0,0,0,0.32)";
+  ctx.beginPath();ctx.ellipse(0,CS*0.37,CS*0.21,CS*0.07,0,0,Math.PI*2);ctx.fill();
+  const ps=CS/17;
+  const ox=-8*ps,oy=-10*ps;
+  function dp(col,row,color){
+    ctx.fillStyle=color;
+    ctx.fillRect(ox+col*ps,oy+row*ps,ps*0.97,ps*0.97);
+  }
+  const H1="#f5a800",H2="#d48800",H3="#b86e00";
+  dp(4,0,H2);dp(5,0,H1);dp(6,0,H1);dp(7,0,H2);dp(8,0,H1);dp(9,0,H2);
+  dp(3,1,H2);dp(4,1,H1);dp(5,1,H1);dp(6,1,H1);dp(7,1,H1);dp(8,1,H1);dp(9,1,H1);dp(10,1,H2);
+  dp(3,2,H3);dp(4,2,H2);dp(10,2,H2);dp(11,2,H3);
+  dp(3,3,H3);dp(4,3,H2);dp(10,3,H2);dp(11,3,H3);
+  const S1="#f5c99a",S2="#e0a870",S3="#c8915a";
+  for(let c=5;c<=10;c++)dp(c,2,S1);
+  for(let c=4;c<=11;c++)dp(c,3,S1);
+  for(let c=4;c<=11;c++)dp(c,4,S1);
+  for(let c=4;c<=11;c++)dp(c,5,S1);
+  for(let c=4;c<=11;c++)dp(c,6,S1);
+  for(let c=5;c<=10;c++)dp(c,7,S1);
+  for(let c=6;c<=9;c++)dp(c,8,S2);
+  dp(7,9,S2);dp(8,9,S2);
+  const E1="#6dcff0",E2="#2a9ec9",EP="#111";
+  dp(5,4,E1);dp(6,4,E2);dp(6,5,E1);dp(5,5,EP);
+  dp(9,4,E1);dp(10,4,E2);dp(10,5,E1);dp(9,5,EP);
+  dp(4,5,S2);dp(11,5,S2);
+  dp(6,7,S3);dp(7,7,"#c87050");dp(8,7,S3);
+  dp(7,9,S2);dp(8,9,S2);
+  const G1="#3aaa4a",G2="#267a34",G3="#1a5424";
+  dp(3,10,G2);dp(4,10,G1);dp(5,10,G1);dp(6,10,G1);dp(7,10,G1);
+  dp(8,10,G1);dp(9,10,G1);dp(10,10,G1);dp(11,10,G1);dp(12,10,G2);
+  for(let row=11;row<=14;row++){
+    dp(4,row,G1);dp(5,row,G1);dp(6,row,G1);dp(7,row,G1);
+    dp(8,row,G1);dp(9,row,G1);dp(10,row,G1);dp(11,row,G1);
+  }
+  dp(7,10,G3);dp(8,10,G3);dp(7,11,G3);dp(8,11,G3);
+  dp(3,11,G2);dp(2,12,S1);dp(2,13,S1);dp(3,13,G2);dp(2,14,S2);
+  dp(12,11,G2);dp(13,12,S1);dp(13,13,S1);dp(12,13,G2);dp(13,14,S2);
+  const P1="#2a5530",P2="#1a3a20";
+  dp(5,15,P1);dp(6,15,P1);dp(7,15,P1);dp(8,15,P1);dp(9,15,P1);dp(10,15,P1);
+  dp(5,16,P1);dp(6,16,P1);dp(7,16,P2);dp(8,16,P2);dp(9,16,P1);dp(10,16,P1);
+  dp(5,17,P2);dp(6,17,P2);dp(9,17,P2);dp(10,17,P2);
+  ctx.restore();
+}
+
+// ── DRAW MONSTER ─────────────────────────────────────────────
+function drawGhost(sr,sc,t){
+  if(ghost.r<sr||ghost.r>=sr+VIEW||ghost.c<sc||ghost.c>=sc+VIEW)return;
+  const{x,y}=mxy(ghost.r,ghost.c,sr,sc);
+  const cx=x+CS/2, cy=y+CS/2;
+  const d=dist(ghost,player);
+  const danger=d<=3;
+  const chomp=Math.abs(Math.sin(t*0.012))*0.4;
+  const bob=Math.sin(t*0.008)*CS*0.04;
+
+  ctx.save();
+  ctx.translate(cx, cy+bob);
+
+  const auraColor=danger?"rgba(255,30,0,0.7)":"rgba(200,50,0,0.45)";
+  const aura=ctx.createRadialGradient(0,0,CS*0.1,0,0,CS*0.62);
+  aura.addColorStop(0,auraColor);aura.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=aura;ctx.beginPath();ctx.arc(0,0,CS*0.62,0,Math.PI*2);ctx.fill();
+
+  const ps=CS/18;
+  const ox=-9*ps, oy=-9*ps;
+  function mp(col,row,color){
+    ctx.fillStyle=color;
+    ctx.fillRect(ox+col*ps, oy+row*ps, ps*0.96, ps*0.96);
+  }
+
+  const R1="#c0302a", R2="#8a1a14", RD="#3a0806";
+  const TOOTH="#f0ece0", TOOTH2="#d4d0c0";
+  const EYE="#ff2222", EYE2="#ffffff";
+  const FUR="#a02018", FUR2="#d04030";
+  const GOGGLE="#cc2200", GOGGLE2="#ff4422", GBORDER="#550000";
+
+  mp(0,1,FUR); mp(1,0,FUR2); mp(0,0,FUR);
+  mp(3,0,FUR2); mp(2,1,FUR);
+  mp(5,0,FUR2); mp(4,1,FUR);
+  mp(8,0,FUR2); mp(7,0,FUR); mp(9,0,FUR);
+  mp(11,0,FUR2); mp(12,1,FUR);
+  mp(13,0,FUR2); mp(14,1,FUR);
+  mp(16,0,FUR); mp(17,0,FUR2); mp(16,1,FUR);
+
+  for(let c=2;c<=15;c++) mp(c,2,c<=3||c>=14?R2:R1);
+  for(let c=1;c<=16;c++) mp(c,3,c<=2||c>=15?R2:R1);
+  for(let c=1;c<=16;c++) mp(c,4,R1);
+  for(let c=1;c<=16;c++) mp(c,5,R1);
+
+  for(let c=2;c<=15;c++) mp(c,3,GBORDER);
+  for(let c=3;c<=14;c++) mp(c,3,GOGGLE);
+
+  mp(3,2,GBORDER); mp(4,2,GBORDER); mp(5,2,GBORDER); mp(6,2,GBORDER);
+  mp(3,3,GBORDER); mp(6,3,GBORDER);
+  mp(3,4,GBORDER); mp(4,4,GOGGLE2); mp(5,4,EYE2); mp(6,4,GBORDER);
+  mp(4,3,EYE); mp(5,3,EYE2);
+
+  mp(11,2,GBORDER); mp(12,2,GBORDER); mp(13,2,GBORDER); mp(14,2,GBORDER);
+  mp(11,3,GBORDER); mp(14,3,GBORDER);
+  mp(11,4,GBORDER); mp(12,4,EYE2); mp(13,4,GOGGLE2); mp(14,4,GBORDER);
+  mp(12,3,EYE2); mp(13,3,EYE);
+
+  mp(8,4,RD); mp(9,4,RD);
+
+  for(let c=2;c<=15;c++) mp(c,6,RD);
+  mp(2,5,TOOTH); mp(3,5,TOOTH2); mp(5,5,TOOTH); mp(6,5,TOOTH2);
+  mp(8,5,TOOTH); mp(9,5,TOOTH2); mp(11,5,TOOTH); mp(12,5,TOOTH2);
+  mp(14,5,TOOTH); mp(15,5,TOOTH2);
+
+  const chompOff=Math.round(chomp*2);
+  mp(2,6+chompOff,TOOTH); mp(4,6+chompOff,TOOTH2); mp(6,6+chompOff,TOOTH);
+  mp(8,6+chompOff,TOOTH2); mp(10,6+chompOff,TOOTH); mp(12,6+chompOff,TOOTH2);
+  mp(14,6+chompOff,TOOTH);
+
+  for(let c=3;c<=14;c++) mp(c,7,RD);
+
+  for(let c=1;c<=16;c++) mp(c,8,R1);
+  for(let c=1;c<=16;c++) mp(c,9,c<=2||c>=15?R2:R1);
+  for(let c=2;c<=15;c++) mp(c,10,R2);
+
+  mp(0,4,FUR); mp(0,5,FUR2); mp(0,6,FUR); mp(0,7,FUR2); mp(0,8,FUR);
+  mp(17,4,FUR); mp(17,5,FUR2); mp(17,6,FUR); mp(17,7,FUR2); mp(17,8,FUR);
+
+  mp(3,11,R2); mp(4,11,R1); mp(5,11,R1); mp(6,11,R2);
+  mp(3,12,RD); mp(4,12,R2); mp(5,12,R2); mp(6,12,RD);
+  mp(11,11,R2); mp(12,11,R1); mp(13,11,R1); mp(14,11,R2);
+  mp(11,12,RD); mp(12,12,R2); mp(13,12,R2); mp(14,12,RD);
+
+  mp(4,13,FUR); mp(5,13,FUR2); mp(8,13,FUR2); mp(9,13,FUR);
+  mp(12,13,FUR); mp(13,13,FUR2);
+
+  const barW=CS*0.75, barH=CS*0.09;
+  const barX=-barW/2, barY=CS*0.56;
+  const t2=Math.max(0,Math.min(1,(d-NEAR_DIST)/(FAR_DIST-NEAR_DIST)));
+  const fillColor=danger?"#f44":d<=8?"#fa0":"#0f8";
+  ctx.fillStyle="rgba(0,0,0,0.45)";
+  ctx.beginPath();ctx.roundRect(barX,barY,barW,barH,3);ctx.fill();
+  ctx.fillStyle=fillColor;
+  ctx.beginPath();ctx.roundRect(barX,barY,barW*(1-t2),barH,3);ctx.fill();
+
+  ctx.fillStyle=danger?"rgba(255,80,80,0.95)":"rgba(255,160,100,0.85)";
+  ctx.font=`bold ${CS*0.17}px Arial`;ctx.textAlign="center";
+  ctx.fillText(danger?"RUN!":"😈 BEAST",0,CS*0.52);
+
+  ctx.restore();
+}
+
+// ── MAIN RENDER LOOP ─────────────────────────────────────────
+function render(t){
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.75);
+  bg.addColorStop(0,"#1e1610");bg.addColorStop(1,"#050302");
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  const{sr,sc}=getOrigin();
+  drawFloor(sr,sc);
+  drawWalls(sr,sc);
+  drawTrail(sr,sc);
+  drawGoal(sr,sc,t);
+  drawArrow(sr,sc);
+  drawPlayer(sr,sc,t);
+  drawGhost(sr,sc,t);
+  for(const p of particles){
+    const alpha=Math.sin(p.life*Math.PI)*0.45;
+    ctx.fillStyle=`hsla(${p.hue},80%,62%,${alpha})`;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fill();
+  }
+  tickParticles();
+  const d=dist(ghost,player);
+
+  // NEW: drive danger audio from distance
+  SFX.setDanger(d);
+
+  if(d<5){
+    const a=Math.min(0.45,(5-d)/5*0.45);
+    const v=ctx.createRadialGradient(W/2,H/2,W*0.22,W/2,H/2,W*0.72);
+    v.addColorStop(0,"rgba(255,0,0,0)");v.addColorStop(1,`rgba(255,0,0,${a})`);
+    ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+  }
+  if(gameStarted&&!gameOver) animFrame=requestAnimationFrame(render);
+}
+
+// ── GHOST MOVEMENT ───────────────────────────────────────────
+function moveGhost(){
+  if(gameOver||!gameStarted)return;
+  const target=posHistory.length>0?posHistory[0]:{r:0,c:0};
+  const path=bfs(ghost.r,ghost.c,target.r,target.c);
+  if(path.length>1){ghost.r=path[1].r;ghost.c=path[1].c;}
+  if(ghost.r===player.r&&ghost.c===player.c){endGame(false,"caught");return;}
+  const d=dist(ghost,player);
+  const t=Math.max(0,Math.min(1,(d-NEAR_DIST)/(FAR_DIST-NEAR_DIST)));
+  const speed=Math.round(NEAR_SPEED+t*(FAR_SPEED-NEAR_SPEED));
+  ghostTimer=setTimeout(moveGhost,speed);
+}
+
+// ── TIMER ────────────────────────────────────────────────────
+function startTimer(){
+  startTime=Date.now();
+  SFX.prevTickSec = null;
+  timerId=setInterval(()=>{
+    if(gameOver){clearInterval(timerId);return;}
+    const rem=TOTAL_MS-(Date.now()-startTime);
+    if(rem<=0){
+      document.getElementById("timeDisp").textContent="0:00";
+      endGame(false,"time");return;
+    }
+    const s=Math.floor(rem/1000);
+    const td=document.getElementById("timeDisp");
+    td.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+    td.style.color=s<=10?"#f44":s<=20?"#fa0":"#ffbb80";
+
+    // NEW: last 10 sec beep (once per second)
+    if(SFX.inited && s<=10 && s!==SFX.prevTickSec){
+      SFX.prevTickSec=s;
+      SFX.tick();
+    }
+    try{ saveRun(); }catch(_e){}
+  },200);
+}
+
+// ── END GAME ─────────────────────────────────────────────────
+function endGame(win,reason){
+  gameOver=true;
+  clearInterval(timerId);clearTimeout(ghostTimer);
+
+  // NEW: stop loops + play result sound
+  if(SFX.inited){
+    SFX.stopAll();
+    if(win) SFX.win();
+    else SFX.growl();
+  }
+
+  setTimeout(()=>{
+    const box=document.getElementById("msgBox");
+    const title=document.getElementById("msgTitle");
+    const body=document.getElementById("msgBody");
+    if(win){
+      title.style.color="#00ff88";title.textContent="🏆 You escaped!";
+      const s=Math.floor(Math.max(0,TOTAL_MS-(Date.now()-startTime))/1000);
+      body.textContent=`Escaped in ${steps} steps with ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} remaining!`;
+        // mark maze crystal as collected (ci = 4)
+        try{ localStorage.setItem('crystal_4','1'); }catch(_e){}
+    }else if(reason==="caught"){
+      title.style.color="#ff4444";title.textContent="💀 Caught!";
+      body.textContent="The Rock Hard Beast tore you apart. Move faster next time!";
+    }else{
+      title.style.color="#ffaa00";title.textContent="⏰ TIME'S UP!";
+      body.textContent="The cavern collapses. You needed to be quicker!";
+    }
+    box.style.display="flex";
+    try{ const rb=document.getElementById('return-hub-btn'); if(rb){ rb.style.display='block'; rb.setAttribute('aria-hidden','false'); }}catch(_e){}
+  },80);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+function initGame(){
+  genMaze();
+  player={r:0,c:0};
+  ghost={r:ROWS-1,c:0,phaseOffset:Math.random()*Math.PI*2};
+  trail=[{r:0,c:0}];
+  posHistory=[];
+  steps=0;gameOver=false;
+  computeHintPath();
+  document.getElementById("stepDisp").textContent="0";
+  document.getElementById("timeDisp").textContent="1:00";
+  document.getElementById("dangerBox").textContent="🔴 Safe";
+  document.getElementById("dangerBox").style.color="#0f8";
+}
+
+// ── INPUT ────────────────────────────────────────────────────
+const KEYMAP={
+  ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1],
+  w:[-1,0],s:[1,0],a:[0,-1],d:[0,1],
+  W:[-1,0],S:[1,0],A:[0,-1],D:[0,1]
+};
+window.addEventListener("keydown",(e)=>{
+  if(!gameStarted||gameOver)return;
+  const m=KEYMAP[e.key];if(!m)return;
+  e.preventDefault();
+  const nr=player.r+m[0],nc=player.c+m[1];
+
+  // NEW: bump sound when blocked
+  if(!canPass(player.r,player.c,nr,nc)){ if(SFX.inited) SFX.bump(); return; }
+
+  player.r=nr;player.c=nc;steps++;
+
+  // NEW: step sound on movement
+  if(SFX.inited) SFX.step();
+
+  trail.push({r:nr,c:nc});
+  posHistory.push({r:nr,c:nc});
+  if(posHistory.length>GHOST_LAG)posHistory.shift();
+  document.getElementById("stepDisp").textContent=steps;
+  try{ saveRun(); }catch(_e){}
+  const d=dist(ghost,player);
+  const db=document.getElementById("dangerBox");
+  if(d===0){endGame(false,"caught");return;}
+  db.textContent=d<=2?"🔴 DANGER!":d<=4?"🔴 Close!":"🔴 Safe";
+  db.style.color=d<=2?"#f44":d<=4?"#fa0":"#0f8";
+  if(player.r===GOAL.r&&player.c===GOAL.c)endGame(true);
+});
+
+let tx0=0,ty0=0;
+canvas.addEventListener("touchstart",(e)=>{tx0=e.touches[0].clientX;ty0=e.touches[0].clientY;},{passive:true});
+canvas.addEventListener("touchend",(e)=>{
+  const dx=e.changedTouches[0].clientX-tx0,dy=e.changedTouches[0].clientY-ty0;
+  if(Math.abs(dx)<10&&Math.abs(dy)<10)return;
+  const key=Math.abs(dx)>Math.abs(dy)?(dx>0?"ArrowRight":"ArrowLeft"):(dy>0?"ArrowDown":"ArrowUp");
+  window.dispatchEvent(new KeyboardEvent("keydown",{key,bubbles:true}));
+},{passive:true});
+
+// ── BUTTONS ──────────────────────────────────────────────────
+document.getElementById("startBtn").addEventListener("click",()=>{
+  document.getElementById("overlay").style.display="none";
+
+  // NEW: unlock audio on user gesture
+  SFX.init(); SFX.resume(); SFX.start(); SFX.startAmbience(); SFX.startHeartbeat();
+
+  initGame();gameStarted=true;
+  startTimer();moveGhost();
+  requestAnimationFrame(render);
+});
+document.getElementById("replayBtn").addEventListener("click",()=>{
+  document.getElementById("msgBox").style.display="none";
+  cancelAnimationFrame(animFrame);
+  clearTimeout(ghostTimer);clearInterval(timerId);
+
+  // NEW: keep ambience on replay
+  SFX.init(); SFX.resume(); SFX.startAmbience(); SFX.startHeartbeat();
+
+  initGame();gameStarted=true;
+  startTimer();moveGhost();
+  requestAnimationFrame(render);
+});
+try{ const rb=document.getElementById('return-hub-btn'); if(rb){ rb.style.display='none'; rb.setAttribute('aria-hidden','true'); }}catch(_e){}
+
+// return button wiring and L-key: only active when result box is visible
+const __rbm = document.getElementById('return-hub-btn');
+if(__rbm) __rbm.addEventListener('click', ()=>{ window.location.href='test.html'; });
+document.addEventListener('keydown', e=>{ if((e.key==='l'||e.key==='L') && document.getElementById('msgBox') && document.getElementById('msgBox').style.display==='flex') window.location.href='test.html'; });
+
+gameStarted=false;gameOver=false;
+// initialize game first, then attempt to restore saved maze run and resume if present
+initGame();
+(function(){
+  try{
+    const raw = localStorage.getItem('maze_run');
+    if(!raw) { render(0); return; }
+    const obj = JSON.parse(raw);
+    if(obj.player){ player.r = obj.player.r ?? player.r; player.c = obj.player.c ?? player.c; }
+    if(obj.steps!=null) steps = obj.steps;
+    let _computedStart = null;
+    if(obj.timeRem!=null){
+      // compute startTime so remaining time matches saved
+      _computedStart = Date.now() - (TOTAL_MS - (obj.timeRem*1000));
+    }
+    // update UI to reflect restored values
+    document.getElementById("stepDisp").textContent = steps;
+    const rem = Math.max(0, Math.floor((TOTAL_MS - (Date.now()-startTime))/1000));
+    document.getElementById("timeDisp").textContent = Math.floor(rem/60)+":"+String(rem%60).padStart(2,'0');
+
+  // resume the game loop (start timer and ghost movement)
+  gameStarted = true;
+  // call startTimer to set up the interval, but if we computed a previous start time
+  // restore it immediately so the timer uses the saved remaining time
+  startTimer();
+  if(_computedStart) startTime = _computedStart;
+  moveGhost();
+    requestAnimationFrame(render);
+  }catch(_e){ render(0); }
+})();
+
+function saveRun(){
+  try{
+    const payload = { player: { r: player.r, c: player.c }, steps, timeRem: Math.max(0, Math.floor((TOTAL_MS - (Date.now()-startTime))/1000)) };
+    localStorage.setItem('maze_run', JSON.stringify(payload));
+  }catch(_e){}
+}
+
+// Hub navigation — press L to return to hub
+document.addEventListener('keydown', e => {
+  if(e.key === 'l' || e.key === 'L') {
+    sessionStorage.setItem('returning', '1');
+    window.location.href = 'test.html';
+  }
+});
+
+// Background music
+const bgMusic = new Audio('yessir.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.5;
+
+// Must start on user interaction (browser rule)
+document.addEventListener('click', () => bgMusic.play(), { once: true });
+document.addEventListener('keydown', () => bgMusic.play(), { once: true });
+
+</script>
+
+<!-- Give crystal button (maze -> crystal_4) -->
+<script>
+function updateGiveCrystalBtn_maze(){
+  try{
+    const b=document.getElementById('give-crystal-btn'); if(!b) return;
+    const has=localStorage.getItem('crystal_4')==='1';
+    if(has){ b.textContent='CRYSTAL GIVEN'; b.disabled=true; b.style.opacity='0.6'; }
+    else { b.textContent='GIVE CRYSTAL'; b.disabled=false; b.style.opacity='1'; }
+  }catch(_e){}
+}
+function giveCrystal_maze(){
+  try{
+    localStorage.setItem('crystal_4','1');
+    const b=document.getElementById('give-crystal-btn'); if(b){ b.textContent='CRYSTAL GIVEN'; b.disabled=true; b.style.opacity='0.6'; }
+    try{ const rb=document.getElementById('return-hub-btn'); if(rb){ rb.style.display='block'; rb.setAttribute('aria-hidden','false'); } }catch(_e){}
+    try{ if(typeof checkAllCrystalsAndRunDhrupi==='function') checkAllCrystalsAndRunDhrupi(); }catch(_e){}
+  }catch(_e){}
+}
+const __gbtn_maze = document.getElementById('give-crystal-btn'); if(__gbtn_maze) __gbtn_maze.addEventListener('click', giveCrystal_maze);
+updateGiveCrystalBtn_maze();
+// helper: if all crystals are present, navigate to the finale page
+function checkAllCrystalsAndRunDhrupi(){
+  try{
+    if([0,1,2,3,4].every(i=>localStorage.getItem('crystal_'+i)==='1')){
+      // navigate back to the hub (test.html) instead of directly jumping to finale
+      try{ sessionStorage.setItem('returning','1'); }catch(_e){}
+      setTimeout(()=>{ window.location.href = 'test.html'; }, 300);
+    }
+  }catch(_e){}
+}
+</script>
+<!-- NAV DEBUG: log navigation attempts and stack traces (safe, only logs) -->
+<script>
+(function(){
+  function logStack(tag){ try{ console.log('[NAV DEBUG]', tag, new Error().stack); }catch(_e){}
+  }
+  try{ const a = window.location.assign; window.location.assign = function(url){ console.log('[NAV DEBUG] assign ->', url); logStack('assign'); return a.apply(this, arguments); }; }catch(_e){}
+  try{ const r = window.location.replace; window.location.replace = function(url){ console.log('[NAV DEBUG] replace ->', url); logStack('replace'); return r.apply(this, arguments); }; }catch(_e){}
+  try{ const re = window.location.reload; window.location.reload = function(){ console.log('[NAV DEBUG] reload'); logStack('reload'); return re.apply(this, arguments); }; }catch(_e){}
+  try{ window.addEventListener('beforeunload', function(){ logStack('beforeunload'); }); }catch(_e){}
+  try{ if(typeof checkAllCrystalsAndRunDhrupi==='function'){ const _orig = checkAllCrystalsAndRunDhrupi; checkAllCrystalsAndRunDhrupi = function(){ console.log('[NAV DEBUG] checkAllCrystalsAndRunDhrupi called'); logStack('checkAllCrystalsAndRunDhrupi'); return _orig.apply(this, arguments); }; } }catch(_e){}
+})();
+</script>
+
+</body>
+</html>

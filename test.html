@@ -1,0 +1,788 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Surface Descent</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{overflow:hidden;font-family:"Press Start 2P",monospace;background:#000;color:#e9eef4;image-rendering:pixelated;}
+    canvas{display:block;width:100vw;height:100vh;image-rendering:pixelated;}
+
+
+    /* ── SIMPLE FULLSCREEN CRAWL WITH STARFIELD ── */
+    #crawl-screen{
+      position:fixed;inset:0;z-index:60;
+      background:#000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    #crawl-screen.hidden{display:none;}
+
+
+    #crawl-inner{
+      position:relative;
+      width: min(900px, 92vw);
+      height: 100vh;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    /* starfield behind crawl text */
+    #crawl-stars{
+      position:absolute;
+      inset:0;
+      z-index:0;
+    }
+
+    #crawl-logo,
+    #crawl-sub,
+    #crawl-window,
+    #crawl-skip{
+      position:relative;
+      z-index:1;
+    }
+
+
+    #crawl-logo{
+      font-size: clamp(32px, 5vw, 60px);
+      color:#ffd060;
+      text-shadow:0 0 30px #ff8800,0 0 80px #ff440066;
+      letter-spacing:6px;
+      /* move the main title slightly lower on the screen */
+      margin-top:40px;
+      margin-bottom:24px;
+      text-align:center;
+    }
+
+
+    #crawl-sub{
+      font-size: clamp(14px, 2vw, 20px);
+      color:#aaddff;
+      letter-spacing:3px;
+      margin-bottom:32px;
+      text-align:center;
+    }
+
+
+    #crawl-window{
+      position:relative;
+      width:100%;
+      height: 70vh;
+      overflow:hidden;
+      border-top: 2px solid rgba(255,255,255,0.08);
+      border-bottom: 2px solid rgba(255,255,255,0.08);
+    }
+
+
+    #crawl-text{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      width: 100%;
+      max-width: 900px;
+      text-align:center;
+      font-size: clamp(14px, 2.2vw, 22px);
+      line-height: 2.1;
+      color:#ffe890;
+    }
+    #crawl-text .ct-title{
+      display:block;
+      font-size: clamp(18px, 2.6vw, 26px);
+      color:#ffffff;
+      letter-spacing:4px;
+      margin-bottom:32px;
+      text-shadow:0 0 18px #aaddff;
+    }
+    #crawl-text p{margin-bottom:22px;}
+    #crawl-text .red{color:#ff6644;text-shadow:0 0 12px #ff2200;}
+    #crawl-text .divider{display:block;font-size: clamp(16px, 2.4vw, 24px);color:#ff4422;letter-spacing:6px;margin:30px 0;text-shadow:0 0 16px #ff4422;}
+    #crawl-text .dim{color:#aa9966;font-size: clamp(12px, 1.8vw, 18px);}
+
+
+    #crawl-skip{
+      margin-top:20px;
+      font-size: 12px;
+      color: rgba(255,220,80,0.7);
+      letter-spacing:2px;
+      text-align:center;
+      animation: blink 1.4s infinite;
+    }
+    @keyframes blink{0%,100%{opacity:0.4}50%{opacity:1}}
+
+
+    /* GAME UI (unchanged except no bottom title) */
+    #crystal-hud{
+      /* moved to bottom center and enlarged (moved a bit higher) */
+      position:fixed;bottom:200px;left:50%;transform:translateX(-50%);
+      display:flex;gap:20px;align-items:center;z-index:6;
+      background:rgba(0,0,0,0.7);
+      border:1px solid rgba(100,200,255,0.25);
+      padding:14px 26px;border-radius:6px;
+      backdrop-filter:blur(6px);
+      font-size:14px;
+    }
+    .hud-label{font-size:11px;color:#7ab8d0;letter-spacing:2px;margin-right:8px;}
+    .cs{width:28px;height:28px;flex:0 0 28px;}
+    .cs svg{width:28px;height:28px;display:block;}
+    .cs.empty svg .gem{fill:#1a2a3a;}
+    .cs.filled svg .gem{fill:var(--gc);filter:drop-shadow(0 0 5px var(--gc));}
+
+
+    #hint{position:fixed;z-index:6;pointer-events:none;opacity:0;transform:translateY(10px);transition:opacity .2s,transform .2s;padding:12px 20px;border-radius:4px;white-space:nowrap;font-size:11px;color:#f0f8ff;background:rgba(8,16,26,0.95);border:1px solid rgba(100,200,255,0.25);}
+    #hint.show{opacity:1;transform:translateY(0);}
+    #hint .key{display:inline-block;margin-right:10px;padding:3px 10px;border-radius:3px;background:#5eb8ff;color:#071a2e;font-size:11px;font-weight:900;}
+    #hint .label{color:#ffd980;}
+
+
+    #zone-lore{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);max-width:600px;width:92%;background:rgba(4,10,20,0.95);border:1px solid rgba(100,200,255,0.2);padding:18px 24px;z-index:4;opacity:0;pointer-events:none;transition:opacity 0.3s;border-radius:4px;text-align:center;}
+    #zone-lore.show{opacity:1;}
+    .lore-name{font-size:12px;color:#ffd060;margin-bottom:10px;}
+    .lore-desc{font-size:9px;line-height:1.9;color:#99c4dd;white-space:pre-line;}
+
+
+    #flash{position:fixed;inset:0;pointer-events:none;background:#a8deff;opacity:0;z-index:10;transition:opacity 0.06s;}
+    #boss-flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,#ff220055,#000 70%);opacity:0;z-index:9;transition:opacity 1.2s;}
+    #boss-flash.show{opacity:1;}
+  /* boss message overlay */
+  #boss-msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:11;opacity:0;transition:opacity 0.35s;}
+  #boss-msg .msg{font-family:var(--px, 'Press Start 2P'),monospace;color:#fff;font-size:20px;text-align:center;text-shadow:0 0 30px #ffffff,0 0 80px #ff7799;transform:translateY(6px);transition:transform 0.35s,opacity 0.35s;}
+  /* subtle pop/entrance animation for the boss message */
+  #boss-msg .msg.animate{animation:boss-pop 1.4s cubic-bezier(.2,.9,.3,1) both;}
+  @keyframes boss-pop{0%{transform:translateY(20px) scale(.9);opacity:0}20%{opacity:1}70%{transform:translateY(-6px) scale(1.06)}100%{transform:translateY(0) scale(1)}}
+  #boss-msg.show{opacity:1;}
+    #scanlines{position:fixed;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,0.09) 3px,rgba(0,0,0,0.09) 4px);}
+    /* reset crystals button (top-right corner) */
+    #reset-crystals{position:fixed;top:12px;right:12px;z-index:70;cursor:pointer;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.06);color:#fff;border:1px solid rgba(255,255,255,0.06);font-size:11px;backdrop-filter:blur(6px);}
+    #reset-crystals:hover{background:rgba(255,255,255,0.09);}
+  </style>
+</head>
+<body>
+
+
+<!-- CRAWL -->
+<div id="crawl-screen">
+  <div id="crawl-inner">
+    <canvas id="crawl-stars"></canvas>
+    <div id="crawl-logo">SURFACE DESCENT</div>
+    <div id="crawl-sub">A DESCENT INTO THE UNKNOWN</div>
+    <div id="crawl-window">
+      <div id="crawl-text">
+        <span class="ct-title">SURFACE DESCENT</span>
+
+
+        <p>The surface was a lie.</p>
+
+
+        <p>For three hundred years, the Architects built their cities above ground &mdash; gleaming, towering, blind.
+        They told their children the earth had no bottom.
+        They burned the maps that said otherwise.</p>
+
+
+        <p class="red">They were wrong.</p>
+
+
+        <span class="divider">*   *   *</span>
+
+
+        <p>Deep beneath the crust, older than any civilization, five chambers were carved by hands that had no name.
+        Each one sealed with a Crystal &mdash; not to protect what was inside, but to protect <em>us</em> from it.</p>
+
+
+        <p class="red">The Hollow King was buried there.</p>
+
+
+        <p>Not dead. Not sleeping.<br/>Waiting.</p>
+
+
+        <span class="divider">*   *   *</span>
+
+
+        <p>The Architects cracked the first seal thirty years ago.
+        They called it an excavation. They called it progress.
+        Seventeen of them descended into the shaft.</p>
+
+
+        <p class="red">None of them came back up.</p>
+
+
+        <p>The shaft was sealed. The records were destroyed.
+        The city above it was abandoned overnight &mdash; no announcement, no explanation, just silence where a million people used to be.</p>
+
+
+        <span class="divider">*   *   *</span>
+
+
+        <p>Now the seals are failing.</p>
+
+
+        <p>One by one, the five chambers are breaking open from the inside.
+        The ground shakes. The sky above the dead cities has turned the color of an old wound.</p>
+
+
+        <p class="red">He is almost free.</p>
+
+
+        <span class="divider">*   *   *</span>
+
+
+        <p>You are the last Descender.</p>
+
+
+        <p>Not chosen. Not special.
+        You are here because everyone else is already gone, and someone has to go back down.</p>
+
+
+        <p>Five chambers. Five crystals.
+        Each one guarded by something that has had centuries to get very, very good at killing.</p>
+
+
+        <p class="red">Collect them all.<br/>Open the final gate.<br/>Finish what the Architects were too afraid to start.</p>
+
+
+        <span class="divider">*   *   *</span>
+
+
+        <p class="dim">The journey starts now.</p>
+        <p class="dim">What comes next is beaneath the surface.</p>
+      </div>
+    </div>
+    <div id="crawl-skip">SPACE / CLICK TO SKIP</div>
+  </div>
+</div>
+
+
+<!-- GAME -->
+<canvas id="hub"></canvas>
+<div id="scanlines"></div>
+<button id="reset-crystals" title="Reset crystals">RESET</button>
+<div id="crystal-hud">
+  <span class="hud-label">CRYSTALS</span>
+  <div class="cs empty" style="--gc:#00ffaa" id="cs0"><svg viewBox="0 0 18 18"><polygon class="gem" points="9,1 17,7 14,17 4,17 1,7"/></svg></div>
+  <div class="cs empty" style="--gc:#ff6a00" id="cs1"><svg viewBox="0 0 18 18"><polygon class="gem" points="9,1 17,7 14,17 4,17 1,7"/></svg></div>
+  <div class="cs empty" style="--gc:#9b59f5" id="cs2"><svg viewBox="0 0 18 18"><polygon class="gem" points="9,1 17,7 14,17 4,17 1,7"/></svg></div>
+  <div class="cs empty" style="--gc:#ff2200" id="cs3"><svg viewBox="0 0 18 18"><polygon class="gem" points="9,1 17,7 14,17 4,17 1,7"/></svg></div>
+  <div class="cs empty" style="--gc:#ffc400" id="cs4"><svg viewBox="0 0 18 18"><polygon class="gem" points="9,1 17,7 14,17 4,17 1,7"/></svg></div>
+</div>
+<div id="hint"></div>
+<div id="zone-lore">
+  <div class="lore-name" id="lore-name"></div>
+  <div class="lore-desc" id="lore-desc"></div>
+</div>
+<div id="flash"></div>
+<div id="boss-flash"></div>
+<div id="boss-msg"><div class="msg"></div></div>
+<audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
+
+
+<script>
+// ── CRAWL + STARFIELD ──
+const bgm = document.getElementById("bgm");
+let musicStarted = false;
+function startMusicOnce() {
+  if (musicStarted || !bgm) return;
+  musicStarted = true;
+  bgm.volume = 0.35;
+  bgm.play().catch(() => { musicStarted = false; });
+}
+document.addEventListener("pointerdown", startMusicOnce, { once: true });
+document.addEventListener("keydown", startMusicOnce, { once: true });
+
+const crawlScreen = document.getElementById("crawl-screen");
+const crawlWindow = document.getElementById("crawl-window");
+const crawlText   = document.getElementById("crawl-text");
+const crawlStars  = document.getElementById("crawl-stars");
+const crawlCtx    = crawlStars.getContext("2d");
+
+let crawlStarsArr = [];
+let crawlPos = 0;
+let crawlDone = false;
+let introOver = false;
+
+function resizeCrawlStars(){
+  crawlStars.width = crawlScreen.clientWidth;
+  crawlStars.height = crawlScreen.clientHeight;
+  crawlStarsArr = [];
+  const count = Math.floor((crawlStars.width * crawlStars.height) / 8000);
+  for(let i=0;i<count;i++){
+    crawlStarsArr.push({
+      x: Math.random()*crawlStars.width,
+      y: Math.random()*crawlStars.height,
+      r: Math.random()*1.5 + 0.4,
+      a: 0.4 + Math.random()*0.6
+    });
+  }
+  drawCrawlStars();
+}
+function drawCrawlStars(){
+  if(crawlScreen.classList.contains("hidden")) return;
+  crawlCtx.clearRect(0,0,crawlStars.width,crawlStars.height);
+  crawlCtx.fillStyle = "#000";
+  crawlCtx.fillRect(0,0,crawlStars.width,crawlStars.height);
+  for(const s of crawlStarsArr){
+    crawlCtx.beginPath();
+    crawlCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    crawlCtx.fillStyle = `rgba(230,240,255,${s.a})`;
+    crawlCtx.fill();
+  }
+}
+window.addEventListener("resize", resizeCrawlStars);
+resizeCrawlStars();
+
+function startCrawl(){
+  // make startCrawl idempotent so accidental re-invokes don't restart the intro
+  try{ if(window.__crawlStarted){ console.log('[CRAWL DEBUG] startCrawl called but already started', new Error().stack); return; } window.__crawlStarted = true; }catch(_e){}
+  crawlPos = crawlWindow.offsetHeight;
+  crawlText.style.top = crawlPos + "px";
+  try{ console.log('[CRAWL DEBUG] startCrawl invoked', {crawlPos}); console.log(new Error().stack); }catch(_e){}
+}
+
+function endCrawl(){
+  try{ if(crawlDone){ console.log('[CRAWL DEBUG] endCrawl called but crawlDone already true', new Error().stack); return; } }catch(_e){}
+  crawlDone = true;
+  introOver = true;
+  crawlScreen.classList.add("hidden");
+  try{ console.log('[CRAWL DEBUG] endCrawl invoked'); console.log(new Error().stack); }catch(_e){}
+}
+
+// Skip if returning from minigame
+if (sessionStorage.getItem("returning") === "1") {
+  try{ console.log('[CRAWL DEBUG] detected returning=1 in sessionStorage'); console.log(new Error().stack); }catch(_e){}
+  sessionStorage.removeItem("returning");
+  endCrawl();
+} else {
+  startCrawl();
+}
+
+// keyboard & input
+const keys = {};
+document.addEventListener("keydown", e => {
+  if (["Space","Enter","Escape","KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) {
+    if (!crawlDone) { endCrawl(); return; }
+  }
+  keys[e.code] = true;
+  if (e.code === "KeyE" && nearZone && introOver) {
+    sessionStorage.setItem("returning","1");
+    flashGo(() => { window.location.href = nearZone.file; });
+  }
+});
+document.addEventListener("keyup", e => { keys[e.code] = false; });
+crawlScreen.addEventListener("click", endCrawl);
+
+
+// ── CRYSTALS & BOSS ───────────────────────────────
+for(let i=0;i<5;i++){
+  if(localStorage.getItem("crystal_"+i)==="1")
+    document.getElementById("cs"+i).classList.replace("empty","filled");
+}
+// reset helper for development/testing: clears crystals and resets HUD + boss state
+function resetCrystals(){
+  for(let i=0;i<5;i++){
+    localStorage.removeItem('crystal_'+i);
+    const el = document.getElementById('cs'+i);
+    if(el) el.classList.replace('filled','empty');
+  }
+  // allow boss to trigger again
+  sessionStorage.removeItem('bossTriggered');
+  // hide boss flash and clear main flash
+  const bf = document.getElementById('boss-flash'); if(bf) bf.classList.remove('show');
+  const fl = document.getElementById('flash'); if(fl){ fl.style.opacity = 0; }
+  // remove autosave snapshots and other progress keys
+  try{
+    const runKeys = ['swkrd_run','maze_run','climber_run','king_run','rocket_run'];
+    for(const k of runKeys) localStorage.removeItem(k);
+    // also remove any leftover crystal flags just in case
+    for(let i=0;i<5;i++) localStorage.removeItem('crystal_'+i);
+    // remove any session marker used for navigation
+    try{ sessionStorage.removeItem('returning'); }catch(_e){}
+  }catch(_e){}
+
+  // small hint feedback if hint element exists
+  const hintEl = document.getElementById('hint');
+  if(hintEl){ hintEl.textContent = 'All progress reset'; hintEl.classList.add('show'); setTimeout(()=>hintEl.classList.remove('show'),1200); }
+}
+
+// attach reset button handler (safe in case element isn't present)
+const _resetBtn = document.getElementById('reset-crystals');
+if(_resetBtn) _resetBtn.addEventListener('click', resetCrystals);
+function checkBoss(){
+  if(![0,1,2,3,4].every(i=>localStorage.getItem("crystal_"+i)==="1"))return;
+  if(sessionStorage.getItem("bossTriggered"))return;
+  sessionStorage.setItem("bossTriggered","1");
+
+  // show a custom boss message/animation first
+  function showBossMsg(text, duration = 1400){
+    const bm = document.getElementById('boss-msg');
+    if(!bm) return;
+    const msg = bm.querySelector('.msg');
+    if(msg) msg.textContent = text;
+    bm.classList.add('show');
+    if(msg) msg.classList.add('animate');
+    // remove the animate class after the duration so it can replay later if needed
+    setTimeout(()=>{ if(msg) msg.classList.remove('animate'); }, duration + 50);
+  }
+
+
+
+  // keep the original boss-flash / red flash / redirect sequence
+  document.getElementById("boss-flash").classList.add("show");
+  setTimeout(()=>{
+    const fl=document.getElementById("flash");
+    fl.style.background="#ff2200";fl.style.transition="opacity 0.1s";fl.style.opacity="0.85";
+  setTimeout(()=>{ try{ resetCrystals(); }catch(_e){}; window.location.href="dhrupi.html"; },700);
+  },1400);
+}
+checkBoss();
+
+
+// ── GAME (unchanged) ──
+const canvas=document.getElementById("hub");
+const ctx=canvas.getContext("2d");
+const hintEl=document.getElementById("hint");
+const flashEl=document.getElementById("flash");
+const zoneLoreEl=document.getElementById("zone-lore");
+const loreNameEl=document.getElementById("lore-name");
+const loreDescEl=document.getElementById("lore-desc");
+const PX='"Press Start 2P",monospace';
+
+const bgImg=new Image();let bgReady=false;
+bgImg.onload=()=>bgReady=true;bgImg.src="joemama.png";
+
+const ZONES=[
+  {x:80,  y:140,w:140,h:130,file:"swkrd.html",             label:"CRYPTS",color:"#7af7c4",glow:"#00ffaa",lore:"THE SUNKEN CRYPTS",  desc:'"The dead do not sleep here. They wait."\nA burial chamber flooded long ago — the torches never went out.',ci:0},
+  {x:320, y:60, w:140,h:130,file:"rocket.html",          label:"ROCKET",color:"#ffa05a",glow:"#ff6a00",lore:"THE FORGE SHAFT",    desc:'"They built machines to reach the sky.\nInstead, they bored into the earth."\nThe rocket still fires. No one knows where it goes.',ci:1},
+  {x:600, y:40, w:140,h:130,file:"king_of_the_yard.html",label:"KING",  color:"#c8a4ff",glow:"#9b59f5",lore:"THE CONTESTED YARD", desc:'"Every ruler believed the throne was theirs by birthright.\nAll of them are bones now."',ci:2},
+  {x:900, y:60, w:140,h:130,file:"climber.html",    label:"LAVA",  color:"#ff7070",glow:"#ff2200",lore:"THE MOLTEN LAYER",   desc:'"The core is not iron. It is anger."\nOne wrong step and the earth swallows you whole.',ci:3},
+  {x:1170,y:140,w:140,h:130,file:"maze.html",           label:"MAZE", color:"#ffe566",glow:"#ffc400",lore:"THE GOLDEN VAULT",   desc:'"There are treasures even the Hollow King fears to touch."\nOnly the worthy are shown the way.',ci:4}
+];
+
+const pl={x:0,y:0,r:14,spd:3.2,facing:1,bobT:0,trail:[],squash:1,frame:0,frameT:0};
+const SLAYERS=[
+  {stars:[],count:340,rMin:0.4,rMax:1.0,alpha:0.5},
+  {stars:[],count:130,rMin:0.8,rMax:1.7,alpha:0.78},
+  {stars:[],count:45, rMin:1.5,rMax:2.6,alpha:1.0}
+];
+
+const GALAXIES=[
+  {xFrac:0.13,yFrac:0.50,r:140,arms:5,rot:0,rotSpd:0.0007,hue:260,tilt:0.38},
+  {xFrac:0.88,yFrac:0.55,r:120,arms:4,rot:1.2,rotSpd:0.0009,hue:195,tilt:0.40}
+];
+
+const PLANETS=[
+  {xFrac:0.07,yFrac:0.28,r:56,colorA:"#1a0a2e",colorB:"#6a35c2",ringColor:"#9b6ef5",hasRing:true, ringTilt:0.30,spd:0.0003},
+  {xFrac:0.92,yFrac:0.30,r:48,colorA:"#1e0808",colorB:"#c23535",ringColor:"#ff7755",hasRing:true, ringTilt:0.25,spd:0.0002},
+  {xFrac:0.50,yFrac:0.82,r:20,colorA:"#081a1e",colorB:"#35a0c2",ringColor:null,     hasRing:false,spd:0.0004},
+  {xFrac:0.28,yFrac:0.88,r:13,colorA:"#1a1a08",colorB:"#c2b235",ringColor:null,     hasRing:false,spd:0.0005}
+];
+
+const NEBULAS=[
+  {xFrac:0.20,yFrac:0.44,rx:210,ry:115,hue:250,alpha:0.055},
+  {xFrac:0.80,yFrac:0.48,rx:180,ry:100,hue:195,alpha:0.05},
+  {xFrac:0.50,yFrac:0.70,rx:250,ry:90, hue:215,alpha:0.04}
+];
+
+const shoots=[];
+const warpLines=[];
+for(let i=0;i<60;i++){
+  const ang=Math.random()*Math.PI*2;
+  warpLines.push({ang,spd:0.4+Math.random()*0.6,dist:Math.random()*0.3+0.05,len:0.01+Math.random()*0.04,alpha:0.08+Math.random()*0.18});
+}
+
+const parts=[];
+
+function initScene(){
+  canvas.width=innerWidth;canvas.height=innerHeight;
+  pl.x=canvas.width/2;pl.y=canvas.height/2;pl.trail=[];
+  for(const L of SLAYERS){
+    L.stars=[];
+    for(let i=0;i<L.count;i++)
+      L.stars.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:L.rMin+Math.random()*(L.rMax-L.rMin),tw:Math.random()*Math.PI*2,tws:0.018+Math.random()*0.04});
+  }
+  parts.length=0;
+  for(let i=0;i<Math.floor(innerWidth*innerHeight/11000);i++)
+    parts.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,vx:(Math.random()-0.5)*0.3,vy:-Math.random()*0.4-0.08,r:Math.random()*1.5+0.3,a:Math.random()*0.4+0.1,hue:Math.random()*60+190});
+}
+addEventListener("resize",initScene);
+
+let tick=0,nearZone=null;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function circleRect(c,r){const cx=clamp(c.x,r.x,r.x+r.w),cy=clamp(c.y,r.y,r.y+r.h);return(c.x-cx)**2+(c.y-cy)**2<c.r*c.r;}
+
+function flashGo(cb){
+  flashEl.style.transition="opacity 0.06s";flashEl.style.opacity="0.7";
+  setTimeout(()=>{flashEl.style.transition="opacity 0.35s";flashEl.style.opacity="0";setTimeout(cb,90);},80);
+}
+
+function drawBg(){
+  const g=ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,"#02050d");g.addColorStop(0.4,"#060a18");g.addColorStop(0.75,"#080d10");g.addColorStop(1,"#040a06");
+  ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(bgReady){ctx.globalAlpha=0.13;ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);ctx.globalAlpha=1;}
+}
+
+function drawWarp(){
+  const cx=canvas.width/2,cy=canvas.height/2;
+  const diag=Math.hypot(canvas.width,canvas.height)/2;
+  ctx.save();
+  for(const w of warpLines){
+    w.dist+=w.spd*0.002;if(w.dist>1){w.dist=0.04+Math.random()*0.08;w.len=0.01+Math.random()*0.035;w.alpha=0.06+Math.random()*0.14;}
+    const r0=w.dist*diag,r1=(w.dist+w.len)*diag;
+    const x0=cx+Math.cos(w.ang)*r0,y0=cy+Math.sin(w.ang)*r0;
+    const x1=cx+Math.cos(w.ang)*r1,y1=cy+Math.sin(w.ang)*r1;
+    ctx.strokeStyle=`rgba(180,220,255,${w.alpha*(1-w.dist)})`;
+    ctx.lineWidth=0.7;
+    ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawNebulas(){
+  for(const n of NEBULAS){
+    const cx=n.xFrac*canvas.width,cy=n.yFrac*canvas.height;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,n.rx);
+    g.addColorStop(0,`hsla(${n.hue},70%,55%,${n.alpha})`);
+    g.addColorStop(0.5,`hsla(${n.hue},60%,40%,${n.alpha*0.5})`);
+    g.addColorStop(1,"transparent");
+    ctx.save();ctx.scale(1,n.ry/n.rx);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy*(n.rx/n.ry),n.rx,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+function drawStars(){
+  for(const L of SLAYERS){
+    for(const s of L.stars){
+      s.tw+=s.tws;const a=L.alpha*(0.55+0.45*Math.sin(s.tw));
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(220,235,255,${a})`;ctx.fill();
+    }
+  }
+}
+
+function drawShoots(){
+  for(let i=shoots.length-1;i>=0;i--){
+    const s=shoots[i];const sp=Math.hypot(s.vx,s.vy);
+    const g=ctx.createLinearGradient(s.x-s.vx*(s.len/sp),s.y-s.vy*(s.len/sp),s.x,s.y);
+    g.addColorStop(0,"transparent");g.addColorStop(1,`rgba(220,240,255,${s.life*0.9})`);
+    ctx.save();ctx.strokeStyle=g;ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(s.x-s.vx*(s.len/sp),s.y-s.vy*(s.len/sp));ctx.lineTo(s.x,s.y);ctx.stroke();ctx.restore();
+    s.x+=s.vx;s.y+=s.vy;s.life-=0.016;if(s.life<=0)shoots.splice(i,1);
+  }
+}
+
+function drawGalaxies(){
+  for(const G of GALAXIES){
+    G.rot+=G.rotSpd;const cx=G.xFrac*canvas.width,cy=G.yFrac*canvas.height;
+    ctx.save();ctx.translate(cx,cy);ctx.scale(1,G.tilt);
+    const halo=ctx.createRadialGradient(0,0,G.r*0.1,0,0,G.r*2.4);
+    halo.addColorStop(0,`hsla(${G.hue},80%,65%,0.25)`);
+    halo.addColorStop(0.4,`hsla(${G.hue},70%,50%,0.10)`);
+    halo.addColorStop(1,"transparent");
+    ctx.fillStyle=halo;ctx.beginPath();ctx.arc(0,0,G.r*2.4,0,Math.PI*2);ctx.fill();
+    const core=ctx.createRadialGradient(0,0,0,0,0,G.r*0.25);
+    core.addColorStop(0,"rgba(255,255,255,0.92)");
+    core.addColorStop(0.35,`hsla(${G.hue},90%,80%,0.65)`);
+    core.addColorStop(1,"transparent");
+    ctx.fillStyle=core;ctx.beginPath();ctx.arc(0,0,G.r*0.25,0,Math.PI*2);ctx.fill();
+    const DPA=130;
+    for(let arm=0;arm<G.arms;arm++){
+      const off=(arm/G.arms)*Math.PI*2;
+      for(let d=0;d<DPA;d++){
+        const t=d/DPA,angle=G.rot+off+t*Math.PI*3.4,r=G.r*0.09+G.r*0.91*t;
+        const dotR=(1-t)*2.4+0.3,dotA=(1-t*0.78)*0.58,L2=55+35*(1-t);
+        ctx.beginPath();ctx.arc(Math.cos(angle)*r,Math.sin(angle)*r,dotR,0,Math.PI*2);
+        ctx.fillStyle=`hsla(${G.hue},80%,${L2}%,${dotA})`;ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function drawPlanets(){
+  for(const p of PLANETS){
+    const px=p.xFrac*canvas.width,py=p.yFrac*canvas.height,rot=tick*p.spd;
+    const halo=ctx.createRadialGradient(px,py,p.r*0.8,px,py,p.r*2.5);
+    halo.addColorStop(0,p.colorB+"2a");halo.addColorStop(1,"transparent");
+    ctx.fillStyle=halo;ctx.beginPath();ctx.arc(px,py,p.r*2.5,0,Math.PI*2);ctx.fill();
+    const grad=ctx.createRadialGradient(px-p.r*0.3,py-p.r*0.3,p.r*0.1,px,py,p.r);
+    grad.addColorStop(0,p.colorB);grad.addColorStop(0.6,p.colorA);grad.addColorStop(1,"#000");
+    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(px,py,p.r,0,Math.PI*2);ctx.fill();
+    ctx.save();ctx.beginPath();ctx.arc(px,py,p.r,0,Math.PI*2);ctx.clip();
+    for(let b=0;b<3;b++){
+      const by=py+(b-1)*p.r*0.55+Math.sin(rot+b)*p.r*0.09;
+      ctx.fillStyle="rgba(255,255,255,0.045)";ctx.fillRect(px-p.r,by-p.r*0.09,p.r*2,p.r*0.18);
+    }
+    ctx.restore();
+    if(p.hasRing){
+      ctx.save();ctx.translate(px,py);ctx.scale(1,p.ringTilt);
+      ctx.strokeStyle=p.ringColor+"90";ctx.lineWidth=6;ctx.shadowColor=p.ringColor;ctx.shadowBlur=12;
+      ctx.beginPath();ctx.arc(0,0,p.r*1.78,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle=p.ringColor+"30";ctx.lineWidth=12;
+      ctx.beginPath();ctx.arc(0,0,p.r*2.05,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function drawShafts(){
+  for(const z of ZONES){
+    const cx=z.x+z.w/2,top=z.y+z.h,bot=canvas.height;if(bot<=top)continue;
+    const g=ctx.createLinearGradient(cx,top,cx,bot);
+    g.addColorStop(0,z.glow+"2a");g.addColorStop(1,"transparent");
+    ctx.fillStyle=g;ctx.fillRect(cx-10,top,20,bot-top);
+  }
+}
+
+function drawTiles(){
+  const W=32,H=14,rows=3,sy=canvas.height-rows*H;
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<=Math.ceil(canvas.width/W);col++){
+      ctx.fillStyle=(col+row)%2===0?"rgba(20,35,55,0.78)":"rgba(14,24,40,0.78)";
+      ctx.fillRect(col*W,sy+row*H,W-1,H-1);
+      if(row===0){ctx.fillStyle="rgba(100,200,255,0.1)";ctx.fillRect(col*W,sy,W-1,1);}
+    }
+  }
+}
+
+function drawParts(){
+  for(const p of parts){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`hsla(${p.hue},90%,72%,${p.a})`;ctx.fill();}
+}
+
+function drawZones(){
+  for(let zi=0;zi<ZONES.length;zi++){
+    const z=ZONES[zi],cx=z.x+z.w/2,cy=z.y+z.h/2;
+    const pulse=0.5+0.5*Math.sin(tick*0.045+z.x*0.01),near=nearZone===z;
+    const gR=(near?68:50)+pulse*12;
+    const gr=ctx.createRadialGradient(cx,cy,4,cx,cy,gR);
+    gr.addColorStop(0,z.glow+"55");gr.addColorStop(0.5,z.glow+"20");gr.addColorStop(1,"transparent");
+    ctx.fillStyle=gr;ctx.beginPath();ctx.ellipse(cx,cy,gR,gR*0.5,0,0,Math.PI*2);ctx.fill();
+    const bH=95+pulse*38,bG=ctx.createLinearGradient(cx,cy-bH,cx,cy);
+    bG.addColorStop(0,"transparent");bG.addColorStop(0.5,z.glow+"28");bG.addColorStop(1,z.glow+"88");
+    ctx.fillStyle=bG;ctx.fillRect(cx-4,cy-bH,8,bH);
+    ctx.save();ctx.beginPath();ctx.rect(z.x+2,z.y+2,z.w-4,z.h-4);ctx.clip();
+    const sw=ctx.createRadialGradient(cx,cy,0,cx,cy,z.w*0.6);
+    sw.addColorStop(0,z.glow+(near?"44":"22"));sw.addColorStop(1,"transparent");
+    ctx.fillStyle=sw;ctx.beginPath();ctx.arc(cx,cy,z.w*0.6,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    ctx.save();ctx.strokeStyle=near?z.color:z.glow+"80";ctx.lineWidth=near?3:2;
+    ctx.shadowColor=z.glow;ctx.shadowBlur=near?28:12;
+    ctx.strokeRect(z.x+2,z.y+2,z.w-4,z.h-4);ctx.restore();
+    if(localStorage.getItem("crystal_"+zi)==="1"){
+      ctx.save();ctx.shadowColor=z.glow;ctx.shadowBlur=16;ctx.fillStyle=z.color;
+      ctx.save();ctx.translate(cx,z.y-22);ctx.rotate(tick*0.025);
+      ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(9,0);ctx.lineTo(0,10);ctx.lineTo(-9,0);ctx.closePath();ctx.fill();
+      ctx.restore();ctx.restore();
+    }
+    ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";
+  // make zone labels larger for better readability
+  ctx.font=`${near?31:26}px ${PX}`;ctx.shadowColor=z.glow;ctx.shadowBlur=near?20:10;
+    ctx.fillStyle=near?z.color:z.glow+"dd";ctx.fillText(z.label,cx,cy);ctx.restore();
+  }
+}
+
+function drawTrail(){
+  for(let i=0;i<pl.trail.length;i++){
+    const t=pl.trail[i],a=(i/pl.trail.length)*0.38;
+    ctx.beginPath();ctx.arc(t.x,t.y,pl.r*0.55*(i/pl.trail.length),0,Math.PI*2);
+    ctx.fillStyle=`rgba(126,230,255,${a})`;ctx.fill();
+  }
+}
+
+function drawPlayer(){
+  const x=pl.x,y=pl.y,bob=Math.sin(pl.bobT)*3,sq=pl.squash,f=pl.facing,fr=pl.frame;
+  ctx.save();ctx.fillStyle="rgba(0,0,0,0.45)";ctx.beginPath();ctx.ellipse(x,y+18-bob*0.3,12/sq,4*sq,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.shadowColor="#7ee6ff";ctx.shadowBlur=nearZone?34:16;
+  ctx.strokeStyle="rgba(180,240,255,0.45)";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y+bob,pl.r+5,0,Math.PI*2);ctx.stroke();ctx.restore();
+  ctx.save();ctx.shadowColor="#44ccff";ctx.shadowBlur=20;
+  const bg=ctx.createRadialGradient(x-4,y+bob-4,2,x,y+bob,pl.r);
+  bg.addColorStop(0,"#c8f5ff");bg.addColorStop(0.5,"#7ee6ff");bg.addColorStop(1,"#2494bb");
+  ctx.fillStyle=bg;ctx.beginPath();ctx.ellipse(x,y+bob,(pl.r/sq)*0.85,pl.r*sq,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.fillStyle="#0f2d44";ctx.beginPath();ctx.arc(x+6*f,y+bob-2,3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(x+6.8*f,y+bob-2.5,1.2,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.fillStyle="#3ab8e0";const lo=fr===0?3.5:-3.5;
+  ctx.fillRect(x-8,y+bob+pl.r-2,6,7+lo*0.5);ctx.fillRect(x+2,y+bob+pl.r-2,6,7-lo*0.5);ctx.restore();
+}
+
+// hint & lore
+let lastNear=null;
+function showLore(z){if(lastNear===z)return;lastNear=z;loreNameEl.textContent=z.lore;loreNameEl.style.color=z.color;loreDescEl.textContent=z.desc;zoneLoreEl.style.borderColor=z.glow+"44";zoneLoreEl.classList.add("show");}
+function hideLore(){if(!lastNear)return;lastNear=null;zoneLoreEl.classList.remove("show");}
+function showHint(z){hintEl.innerHTML=`<span class="key">E</span> Enter <span class="label">${z.lore}</span>`;hintEl.style.left=`${clamp(z.x+z.w+16,12,innerWidth-380)}px`;hintEl.style.top=`${clamp(z.y+z.h*0.5-24,12,innerHeight-60)}px`;hintEl.classList.add("show");}
+
+function updateGame(){
+  tick++;
+  if(Math.random()<0.004)shoots.push({x:Math.random()*innerWidth*0.7,y:Math.random()*innerHeight*0.3,vx:6+Math.random()*7,vy:2+Math.random()*3.5,len:70+Math.random()*90,life:1.0});
+  let dx=0,dy=0;
+  if(keys["KeyA"]||keys["ArrowLeft"])dx-=1;
+  if(keys["KeyD"]||keys["ArrowRight"])dx+=1;
+  if(keys["KeyW"]||keys["ArrowUp"])dy-=1;
+  if(keys["KeyS"]||keys["ArrowDown"])dy+=1;
+  const mv=dx!==0||dy!==0;
+  if(dx&&dy){dx*=0.7071;dy*=0.7071;}
+  if(dx)pl.facing=dx>0?1:-1;
+  if(mv){pl.squash=1+Math.sin(pl.bobT*2)*0.09;pl.frameT++;if(pl.frameT>8){pl.frame=pl.frame===0?1:0;pl.frameT=0;}}
+  else pl.squash+=(1-pl.squash)*0.15;
+  pl.x=clamp(pl.x+dx*pl.spd,pl.r,canvas.width-pl.r);
+  pl.y=clamp(pl.y+dy*pl.spd,pl.r,canvas.height-pl.r);
+  if(mv)pl.bobT+=0.22;
+  pl.trail.push({x:pl.x,y:pl.y});if(pl.trail.length>18)pl.trail.shift();
+  nearZone=null;for(const z of ZONES){if(circleRect(pl,z)){nearZone=z;break;}}
+  if(nearZone){showHint(nearZone);showLore(nearZone);}else{hintEl.classList.remove("show");hideLore();}
+  for(const p of parts){p.x+=p.vx;p.y+=p.vy;if(p.y<-4){p.y=canvas.height+4;p.x=Math.random()*canvas.width;}if(p.x<0)p.x=canvas.width;if(p.x>canvas.width)p.x=0;}
+}
+
+function renderGame(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawBg();drawWarp();drawNebulas();drawStars();drawShoots();drawGalaxies();drawPlanets();drawShafts();drawParts();drawZones();drawTiles();drawTrail();drawPlayer();
+}
+
+// MAIN LOOP
+function loop(){
+  if(!crawlDone){
+    crawlPos -= 0.9;
+    crawlText.style.top = crawlPos + "px";
+    const full = crawlText.scrollHeight;
+    if(crawlPos + full < -40) endCrawl();
+    drawCrawlStars();
+  }
+
+  if(introOver){
+    updateGame();
+    renderGame();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+initScene();
+loop();
+// Background music
+const bgMusic = new Audio('yessir.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.5;
+
+// Must start on user interaction (browser rule)
+document.addEventListener('click', () => bgMusic.play(), { once: true });
+document.addEventListener('keydown', () => bgMusic.play(), { once: true });
+  
+</script>
+<!-- NAV DEBUG: global navigation logging for the hub (safe, only logs) -->
+<script>
+(function(){
+  function logStack(tag){ try{ console.log('[NAV DEBUG - hub]', tag, new Error().stack); }catch(_e){}
+  }
+  try{ const a = window.location.assign; window.location.assign = function(url){ console.log('[NAV DEBUG - hub] assign ->', url); logStack('assign'); return a.apply(this, arguments); }; }catch(_e){}
+  try{ const r = window.location.replace; window.location.replace = function(url){ console.log('[NAV DEBUG - hub] replace ->', url); logStack('replace'); return r.apply(this, arguments); }; }catch(_e){}
+  try{ const re = window.location.reload; window.location.reload = function(){ console.log('[NAV DEBUG - hub] reload'); logStack('reload'); return re.apply(this, arguments); }; }catch(_e){}
+  try{ window.addEventListener('beforeunload', function(){ logStack('beforeunload'); }); }catch(_e){}
+})();
+</script>
+
+</body>
+</html>
+```
